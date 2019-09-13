@@ -1,7 +1,3 @@
-/*
- * Copyright (C) 2017, Leo Ma <begeekmyfriend@gmail.com>
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -137,68 +133,6 @@ static inline void coord_passed_reset(struct kdtree *tree)
         memset(tree->coord_passed, 0, sizeof(unsigned char)*tree->capacity);
 }
 
-/** 输出kdtree所有节点
- * @param
- */
-static void coord_dump_all(struct kdtree *tree)
-{
-        long i, j;
-        for (i = 0; i < tree->count; i++) {
-                long index = tree->coord_indexes[i];
-                double *coord = tree->coord_table[index];
-                printf("(");
-                for (j = 0; j < tree->dim; j++) {
-                        if (j != tree->dim - 1) {
-                                printf("%.2f,", coord[j]);
-                        } else {
-                                printf("%.2f)\n", coord[j]);
-                        }
-                }
-        }
-}
-
-/** 输出指定索引的节点
- * @param
- * @param
- * @param
- * @param
- */
-static void coord_dump_by_indexes(struct kdtree *tree, long low, long high, int r)
-{
-        long i;
-        printf("r=%d:", r);
-        for (i = 0; i <= high; i++) {
-                if (i < low) {
-                        printf("%8s", " ");
-                } else {
-                        long index = tree->coord_indexes[i];
-                        printf("%8.2f", tree->coord_table[index][r]);
-                }
-        }
-        printf("\n");
-}
-
-/** 冒泡排序
- * @param
- * @param
- * @param
- * @param
- */
-static void bubble_sort(struct kdtree *tree, long low, long high, int r)
-{
-        long i, flag = high + 1;
-        long *indexes = tree->coord_indexes;
-        while (flag > 0) {
-                long len = flag;
-                flag = 0;
-                for (i = low + 1; i < len; i++) {
-                        if (D(tree, indexes[i], r) < D(tree, indexes[i - 1], r)) {
-                                swap(indexes + i - 1, indexes + i);
-                                flag = i;
-                        }
-                }
-        }
-}
 
 /** 插入排序
  * @param kdtree
@@ -436,25 +370,35 @@ static void resize(struct kdtree *tree)
         coord_passed_reset(tree);
 }
 
-/** 输出节点
- * @param
- * @param
+/** kdtree初始化
+ * @param dim:维度
+ * @return kdtree结构体指针
  */
-static void kdnode_dump(struct kdnode *node, int dim)
+struct kdtree *kdtree_init(int dim)
 {
-        int i;
-        if (node->coord != NULL) {
-                printf("(");
-                for (i = 0; i < dim; i++) {
-                        if (i != dim - 1) {
-                                printf("%.2f,", node->coord[i]);
-                        } else {
-                                printf("%.2f)\n", node->coord[i]);
-                        }
-                }
-        } else {
-                printf("(none)\n");
-        }
+  // 分配一个kdtree struct的内存空间,但不会初始化赋值（失败的话会返回NULL）
+  struct kdtree *tree = malloc(sizeof(*tree));
+  if (tree != NULL) {
+    tree->root = NULL;
+    tree->dim = dim;
+    tree->count = 0;
+    tree->capacity = 65536; //2字节的大小,16位
+    tree->knn_list_head.next = &tree->knn_list_head;
+    tree->knn_list_head.prev = &tree->knn_list_head;
+    tree->knn_list_head.node = NULL;
+    tree->knn_list_head.distance = 0;
+    tree->knn_num = 0;
+    tree->coords = malloc(dim * sizeof(double) * tree->capacity);
+    tree->coord_table = malloc(sizeof(double *) * tree->capacity);
+    tree->coord_indexes = malloc(sizeof(long) * tree->capacity);
+    tree->coord_deleted = malloc(sizeof(unsigned char) * tree->capacity);
+    tree->coord_passed = malloc(sizeof(unsigned char) * tree->capacity);
+    coord_index_reset(tree);
+    coord_table_reset(tree);
+    coord_deleted_reset(tree);
+    coord_passed_reset(tree);
+  }
+  return tree;
 }
 
 /** 插入新的节点至表中
@@ -469,6 +413,39 @@ void kdtree_insert(struct kdtree *tree, double *coord)
         }
         // 通过内存拷贝，将指定地址中的坐标信息拷贝到坐标表中
         memcpy(tree->coord_table[tree->count++], coord, tree->dim * sizeof(double));
+}
+
+/** 为kdtree构建节点
+ * @param kdtree
+ * @param nptr 当前节点
+ * @param r 切分轴
+ * @param low 列表起始
+ * @param high 列表末端
+ */
+static void kdnode_build(struct kdtree *tree, struct kdnode **nptr, int r, long low, long high)
+{
+  // 结束条件,即分支上只剩下一个节点
+  if (low == high) {
+    long index = tree->coord_indexes[low];
+    *nptr = kdnode_alloc(tree->coord_table[index], index, r);
+  } else if (low < high) {
+    /* Sort and fetch the median to test a balanced BST */
+    quicksort(tree, low, high, r);
+    long median = low + (high - low) / 2;
+    long median_index = tree->coord_indexes[median];// 通过给索引排序，减少数据的移动
+    struct kdnode *node = *nptr = kdnode_alloc(tree->coord_table[median_index], median_index, r);
+    r = (r + 1) % tree->dim;
+    kdnode_build(tree, &node->left, r, low, median - 1);
+    kdnode_build(tree, &node->right, r, median + 1, high);
+  }
+}
+
+/** 构建kdtree
+ * @param kdtree
+ */
+void kdtree_build(struct kdtree *tree)
+{
+  kdnode_build(tree, &tree->root, 0, 0, tree->count - 1);
 }
 
 /** 将符合条件的node加入knn结果
@@ -549,133 +526,22 @@ void kdtree_knn_search(struct kdtree *tree, double *target, int k)
         }
 }
 
-void kdtree_delete(struct kdtree *tree, double *coord)
+// 输出显示
+void kdtree_knn_result(struct kdtree *tree)
 {
-        int r = 0;
-        struct kdnode *node = tree->root;
-        struct kdnode *parent = node;
-
-        while (node != NULL) {
-                if (node->coord == NULL) {
-                        if (parent->right->coord == NULL) {
-                                break;
-                        } else {
-                                node = parent->right;
-                                continue;
-                        }
-                }
-
-                if (coord[r] < node->coord[r]) {
-                        parent = node;
-                        node = node->left;
-                } else if (coord[r] > node->coord[r]) {
-                        parent = node;
-                        node = node->right;
-                } else {
-                        int ret = coord_cmp(coord, node->coord, tree->dim);
-                        if (ret < 0) {
-                                parent = node;
-                                node = node->left;
-                        } else if (ret > 0) {
-                                parent = node;
-                                node = node->right;
-                        } else {
-                                node->coord = NULL;
-                                break;
-                        }
-                }
-                r = (r + 1) % tree->dim;
-        }
-}
-
-/** 为kdtree构建节点
- * @param kdtree
- * @param nptr 当前节点
- * @param r 切分轴
- * @param low 列表起始      
- * @param high 列表末端
- */
-static void kdnode_build(struct kdtree *tree, struct kdnode **nptr, int r, long low, long high)
-{
-        // 结束条件,即分支上只剩下一个节点
-        if (low == high) {
-                long index = tree->coord_indexes[low];
-                *nptr = kdnode_alloc(tree->coord_table[index], index, r);
-        } else if (low < high) {
-                /* Sort and fetch the median to test a balanced BST */
-                quicksort(tree, low, high, r);
-                long median = low + (high - low) / 2;
-                long median_index = tree->coord_indexes[median];// 通过给索引排序，减少数据的移动
-                struct kdnode *node = *nptr = kdnode_alloc(tree->coord_table[median_index], median_index, r);
-                r = (r + 1) % tree->dim;
-                kdnode_build(tree, &node->left, r, low, median - 1);
-                kdnode_build(tree, &node->right, r, median + 1, high);
-        }
-}
-
-/** 建树的起点出发
- * @param
- */
-static void kdtree_build(struct kdtree *tree)
-{
-        kdnode_build(tree, &tree->root, 0, 0, tree->count - 1);
-}
-
-/** 构建kdtree
- * @param kdtree
- */
-void kdtree_rebuild(struct kdtree *tree)
-{
-        long i, j;
-        size_t size_of_coord = tree->dim * sizeof(double);
-
-        for (i = 0, j = 0; j < tree->count; i++, j++) {
-                // 跳过被删除的
-                while (j < tree->count && tree->coord_deleted[j]) {
-                        j++;
-                }
-                // 当出现过跳跃的情况时，通过内存拷贝，将跳过的内容覆盖掉
-                if (i != j && j < tree->count) {
-                        memcpy(tree->coord_table[i], tree->coord_table[j], size_of_coord);
-                        tree->coord_deleted[i] = 0;
-                }
-        }
-        // 重新记录节点个数和索引
-        tree->count = i;
-        coord_index_reset(tree);
-        // 进入真正的建树
-        kdtree_build(tree);
-}
-
-/** kdtree初始化
- * @param dim:维度
- * @return kdtree结构体指针
- */
-struct kdtree *kdtree_init(int dim)
-{       
-        // 分配一个kdtree struct的内存空间,但不会初始化赋值（失败的话会返回NULL）
-        struct kdtree *tree = malloc(sizeof(*tree));
-        if (tree != NULL) {
-                tree->root = NULL;
-                tree->dim = dim;
-                tree->count = 0;
-                tree->capacity = 65536; //2字节的大小,16位
-                tree->knn_list_head.next = &tree->knn_list_head;
-                tree->knn_list_head.prev = &tree->knn_list_head;
-                tree->knn_list_head.node = NULL;
-                tree->knn_list_head.distance = 0;
-                tree->knn_num = 0;
-                tree->coords = malloc(dim * sizeof(double) * tree->capacity);
-                tree->coord_table = malloc(sizeof(double *) * tree->capacity);
-                tree->coord_indexes = malloc(sizeof(long) * tree->capacity);
-                tree->coord_deleted = malloc(sizeof(unsigned char) * tree->capacity);
-                tree->coord_passed = malloc(sizeof(unsigned char) * tree->capacity);
-                coord_index_reset(tree);
-                coord_table_reset(tree);
-                coord_deleted_reset(tree);
-                coord_passed_reset(tree);
-        }
-        return tree;
+  int i;
+  struct knn_list *p = tree->knn_list_head.next;
+  while (p != &tree->knn_list_head) {
+    putchar('(');
+    for (i = 0; i < tree->dim; i++) {
+      if (i == tree->dim - 1) {
+        printf("%.2lf) Distance:%lf, Index: %ld\n", p->node->coord[i], sqrt(p->distance), p->node->coord_index);
+      } else {
+        printf("%.2lf, ", p->node->coord[i]);
+      }
+    }
+    p = p->next;
+  }
 }
 
 /** 清空节点内存
@@ -704,13 +570,35 @@ void kdtree_destroy(struct kdtree *tree)
         free(tree);
 }
 
-#define _KDTREE_DEBUG
-
-#ifdef _KDTREE_DEBUG
+/** 用于可视化的节点结构体
+ */
 struct kdnode_backlog {
         struct kdnode *node;
         int next_sub_idx;
 };
+
+
+/** 输出节点
+ * @param node 节点
+ * @param dim 维度
+ */
+static void kdnode_dump(struct kdnode *node, int dim)
+{
+  int i;
+  if (node->coord != NULL) {
+    printf("(");
+    for (i = 0; i < dim; i++) {
+      if (i != dim - 1) {
+        printf("%.2f,", node->coord[i]);
+      } else {
+        printf("%.2f)\n", node->coord[i]);
+      }
+    }
+  } else {
+    printf("(none)\n");
+  }
+}
+
 
 /** 输出kdtree树状图
  * @param
@@ -773,4 +661,3 @@ void kdtree_dump(struct kdtree *tree)
                 }
         }
 }
-#endif

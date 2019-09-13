@@ -51,12 +51,14 @@ struct kdtree *kdtree_init(int dim);
 // 节点插入
 void kdtree_insert(struct kdtree *tree, double *coord);
 // 构建KD-Tree
-void kdtree_rebuild(struct kdtree *tree);
+void kdtree_build(struct kdtree *tree);
 // knn搜索,搜索结果在tree中的knn_list_head中
 void kdtree_knn_search(struct kdtree *tree, double *target_coord, int k);
+// knn结果输出
+void kdtree_knn_result(struct kdtree *tree);
 // KD-Tree销毁
 void kdtree_destroy(struct kdtree *tree);
-// 
+// KD-Tree树状图可视化
 void kdtree_dump(struct kdtree *tree);
 
 #ifdef __cplusplus

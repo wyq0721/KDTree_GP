@@ -1,6 +1,4 @@
 #include <iostream>
-#include <stdio.h>
-#include <cmath>
 
 // 告诉C++编译器该头文件内用C编译器解释
 extern "C"{
@@ -9,25 +7,6 @@ extern "C"{
 
 using namespace std;
 
-// 输出显示
-static void kdtree_knn_dump(struct kdtree *tree)
-{
-        int i;
-        struct knn_list *p = tree->knn_list_head.next;
-        while (p != &tree->knn_list_head) {
-                putchar('(');
-                for (i = 0; i < tree->dim; i++) {
-                        if (i == tree->dim - 1) {
-                                // printf("%.2lf) Distance:%lf\n", p->node->coord[i], sqrt(p->distance));
-                                //此处为新改动， 即从coord_index中得到返回的最近点在原数组中的索引（索引从0开始）
-                                printf("%.2lf) Distance:%lf, Index: %ld\n", p->node->coord[i], sqrt(p->distance), p->node->coord_index);
-                        } else {
-                                printf("%.2lf, ", p->node->coord[i]);
-                        }
-                }
-                p = p->next;
-        }
-}
 
 int main(void)
 {
@@ -63,9 +42,9 @@ int main(void)
 
 
         // 创建kd-tree
-        kdtree_rebuild(tree);
+        kdtree_build(tree);
 
-        // 可视化
+        // kd-tree可视化
         kdtree_dump(tree);
 
         //搜索目标点附近的临近点
@@ -73,16 +52,9 @@ int main(void)
         double target[] = { -1, -5 };
         kdtree_knn_search(tree, target, k);
 
-        // 输出结果
-        printf("Find %d nearest neighbors of target(", k);
-        for (int i = 0; i < dim; i++) {
-                if (i == dim - 1) {
-                        printf("%.2lf):\n", target[i]);
-                } else {
-                        printf("%.2lf, ", target[i]);
-                }
-        }
-        kdtree_knn_dump(tree);
+        // 输出knn结果
+        cout << "Find " << k << " nearest neighbors of target[" << target[0] << "," << target[1] << "]:" << endl;
+        kdtree_knn_result(tree);
 
         // 回收内存
         kdtree_destroy(tree);
