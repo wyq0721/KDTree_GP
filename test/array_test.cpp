@@ -18,16 +18,16 @@ int main(void)
         }
 
         // 往kd-tree插入平面点（x,y）
-        double sample1[] = { 6.27, 5.50 };
-        double sample2[] = { 1.24, -2.86 };
-        double sample3[] = { 17.05, -12.79 };
-        double sample4[] = { -6.88, -5.40 };
-        double sample5[] = { -2.96, -0.50 };
-        double sample6[] = { 7.75, -22.68 };
-        double sample7[] = { 10.80, -5.03 };
-        double sample8[] = { -4.60, -10.55 };
-        double sample9[] = { -4.96, 12.61 };
-        double sample10[] = { 1.75, 12.26 };
+        double sample1[] = { 6.27, 5.50, 5 };
+        double sample2[] = { 1.24, -2.86, 42 };
+        double sample3[] = { 17.05, -12.79, 4 };
+        double sample4[] = { -6.88, -5.40, 43 };
+        double sample5[] = { -2.96, -0.50, 4 };
+        double sample6[] = { 7.75, -22.68, 4.3 };
+        double sample7[] = { 10.80, -5.03, 4 };
+        double sample8[] = { -4.60, -10.55, 4 };
+        double sample9[] = { -4.96, 12.61, 4 };
+        double sample10[] = { 1.75, 12.26, 4 };
 
         kdtree_insert(tree, sample1);
         kdtree_insert(tree, sample2);
@@ -49,7 +49,7 @@ int main(void)
 
         //搜索目标点附近的临近点
         int k = 3;
-        double target[] = { -1, -5 };
+        double target[] = { -1, -5, 5 };
         kdtree_knn_search(tree, target, k);
 
         // 输出knn结果

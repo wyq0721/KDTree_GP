@@ -30,16 +30,15 @@ int main () {
 
 	for (int i = 0; i < N; ++i)
 	{
-		double sample[] = {gp(0,i), gp(1,i)}; 
-	    kdtree_insert(tree, sample);
+        kdtree_insert(tree, gp.data()+i*3);
     } 
 
 
-    // 创建kdtree， 虽然名字是rebuild， 里面的函数就是build
+    // 创建kdtree
     kdtree_build(tree);
 
     // kd-tree可视化
-     kdtree_dump(tree);
+    kdtree_dump(tree);
 
     //搜索目标点附近的临近点
     int k = 3;
