@@ -41,8 +41,19 @@ int main () {
     kdtree_dump(tree);
 
     //搜索目标点附近的临近点
-    int k = 3;
+    int k = 1;
     double target[] = { -1, -5 };
+    kdtree_knn_search(tree, target, k);
+
+    // 输出knn结果
+    cout << "Find " << k << " nearest neighbors of target[" << target[0] << "," << target[1] << "]:" << endl;
+    kdtree_knn_result(tree);
+
+    // 第二次搜索
+    k = 2;
+    knn_list_reset(tree);
+    target[0] = 10;
+    target[1] = 5;
     kdtree_knn_search(tree, target, k);
 
     // 输出knn结果
@@ -52,5 +63,5 @@ int main () {
     // 回收内存
     kdtree_destroy(tree);
 
-	return 0;
+    return 0;
 }

@@ -353,6 +353,20 @@ static void knn_list_clear(struct kdtree *tree)
         tree->knn_num = 0;
 }
 
+/** 重置结果,即重置双向回环链表
+ * @param
+ */
+void knn_list_reset(struct kdtree *tree){
+
+    knn_list_clear(tree);
+    tree->knn_list_head.next = &tree->knn_list_head;
+    tree->knn_list_head.prev = &tree->knn_list_head;
+    tree->knn_list_head.node = NULL;
+    tree->knn_list_head.distance = 0;
+    tree->knn_num = 0;
+    coord_passed_reset(tree);
+}
+
 /** 为kdtree扩容(2倍)
  * @param kdtree
  */

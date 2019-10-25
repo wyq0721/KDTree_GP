@@ -56,6 +56,8 @@ void kdtree_build(struct kdtree *tree);
 void kdtree_knn_search(struct kdtree *tree, double *target_coord, int k);
 // knn结果输出
 void kdtree_knn_result(struct kdtree *tree);
+// knn结果重置
+void knn_list_reset(struct kdtree *tree);
 // KD-Tree销毁
 void kdtree_destroy(struct kdtree *tree);
 // KD-Tree树状图可视化
